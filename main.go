@@ -1,28 +1,22 @@
 package main
 
 import (
-	"log"
 	"net/http"
 	"os"
 
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo"
+	"github.com/labstack/echo/engine/standard"
+	"github.com/labstack/echo/middleware"
 )
 
 func main() {
 	port := os.Getenv("PORT")
+	e := echo.New()
+	e.Use(middleware.Logger())
+	e.SetLogLevel(0)
 
-	if port == "" {
-		log.Fatal("$PORT must be set")
-	}
-
-	router := gin.New()
-	router.Use(gin.Logger())
-	router.LoadHTMLGlob("templates/*.tmpl.html")
-	router.Static("/static", "static")
-
-	router.GET("/", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "index.tmpl.html", nil)
+	e.GET("/", func(c echo.Context) error {
+		return c.String(http.StatusOK, "Hello World")
 	})
-
-	router.Run(":" + port)
+	e.Run(standard.New(":" + port))
 }
