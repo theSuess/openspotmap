@@ -1,6 +1,11 @@
 {
 	"comment": "",
 	"ignore": "test",
-	"package": [],
+	"package": [
+        {
+            "ImportPath":"github.com/labstack/echo",
+            "Rev":"f4145353be66ecea81f5e268aa9a27f2a4230362"
+        }
+    ],
 	"rootPath": "github.com/thesuess/openspotmap"
 }
