@@ -2,12 +2,12 @@ package main
 
 import (
 	"database/sql"
-	"net/http"
 	"os"
 
 	_ "github.com/jackc/pgx/stdlib"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
+	apiV0 "github.com/theSuess/openspotmap/api/v0"
 )
 
 type Point struct {
@@ -35,18 +35,11 @@ func main() {
 	}
 	defer db.Close()
 
-	e.GET("/", func(c echo.Context) error {
-		rows, err := db.Query("SELECT name,description,ST_X(location::geometry) as longitude,ST_Y(location::geometry) as latitude,images FROM spots")
-		if err != nil {
-			return err
-		}
-		var res []Spot
-		for rows.Next() {
-			var spot Spot
-			rows.Scan(&spot.Name, &spot.Description, &spot.Location.Longitude, &spot.Location.Latitude, &spot.Images)
-			res = append(res, spot)
-		}
-		return c.JSON(http.StatusOK, res)
-	})
+	v0 := apiV0.New(db)
+
+	api := e.Group("/api")
+	v0router := api.Group("/v0")
+	v0router.GET("/spots", v0.GetSpots)
+
 	e.Start(":" + port)
 }
