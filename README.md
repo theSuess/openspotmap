@@ -1,39 +1,19 @@
+# openspotmap
 
-# go-getting-started
+A public API for parkour spots
 
-A barebones Go app, which can easily be deployed to Heroku.
+This application is built for Heroku but can be run anywhere else with little effort
 
-This application supports the [Getting Started with Go on Heroku](https://devcenter.heroku.com/articles/getting-started-with-go) article - check it out.
+## API Documentation
 
-## Running Locally
+_Coming soon_
 
-Make sure you have [Go](http://golang.org/doc/install) and the [Heroku Toolbelt](https://toolbelt.heroku.com/) installed.
+## Running openspotmap
 
-```sh
-$ go get -u github.com/heroku/go-getting-started
-$ cd $GOPATH/src/github.com/heroku/go-getting-started
-$ heroku local
-```
+You need a PostgreSQL database with the PostGIS extension to run this application
+The database schema is in the `schema.sql` file.
 
-Your app should now be running on [localhost:5000](http://localhost:5000/).
+The following environment variables have to be set:
 
-You should also install [Godep](https://github.com/tools/godep) if you are going to add any dependencies to the sample app.
-
-## Deploying to Heroku
-
-```sh
-$ heroku create
-$ git push heroku master
-$ heroku open
-```
-
-or
-
-[![Deploy](https://www.herokucdn.com/deploy/button.png)](https://heroku.com/deploy)
-
-
-## Documentation
-
-For more information about using Go on Heroku, see these Dev Center articles:
-
-- [Go on Heroku](https://devcenter.heroku.com/categories/go)
+* PORT: specifying the port on which the application should run
+* DATABASE_URL: connection url in the following format: `postgres://user:password@host:port/database_name`
