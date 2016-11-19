@@ -1,25 +1,18 @@
 package main
 
 import (
-	"database/sql"
+	"crypto/tls"
+	"net"
 	"os"
+	"strconv"
+	"strings"
 
-	_ "github.com/jackc/pgx/stdlib"
+	"github.com/jackc/pgx"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
+	"github.com/labstack/gommon/log"
 	apiV0 "github.com/theSuess/openspotmap/api/v0"
 )
-
-type Point struct {
-	Longitude float64
-	Latitude  float64
-}
-type Spot struct {
-	Name        string
-	Description string
-	Location    Point
-	Images      []string
-}
 
 func main() {
 	port := os.Getenv("PORT")
@@ -28,7 +21,9 @@ func main() {
 	e := echo.New()
 	e.Use(middleware.Logger())
 
-	db, err := sql.Open("pgx", dburl)
+	e.Logger.SetLevel(log.DEBUG)
+
+	db, err := pgx.Connect(connStringToConfig(dburl))
 	if err != nil {
 		e.Logger.Fatal(err)
 		return
@@ -38,8 +33,31 @@ func main() {
 	v0 := apiV0.New(db)
 
 	api := e.Group("/api")
+
 	v0router := api.Group("/v0")
 	v0router.GET("/spots", v0.GetSpots)
+	v0router.GET("/spots/:id", v0.GetSpot)
 
 	e.Start(":" + port)
+}
+
+func connStringToConfig(c string) pgx.ConnConfig {
+	c = c[11:] // remove "postgres://"
+	splt := strings.Split(c, "@")
+	spltCred := strings.Split(splt[0], ":")
+	user := spltCred[0]
+	password := spltCred[1]
+
+	spltDB := strings.Split(splt[1], "/")
+	db := spltDB[1]
+	host, ports, _ := net.SplitHostPort(spltDB[0])
+	port, _ := strconv.Atoi(ports)
+	return pgx.ConnConfig{
+		Host:      host,
+		Port:      uint16(port),
+		Database:  db,
+		User:      user,
+		Password:  password,
+		TLSConfig: &tls.Config{InsecureSkipVerify: true}, //TLSConfig must be set to use SSL
+	}
 }

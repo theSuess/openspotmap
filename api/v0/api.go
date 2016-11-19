@@ -1,13 +1,13 @@
 package api
 
 import (
-	"database/sql"
+	"github.com/jackc/pgx"
 )
 
 type api struct {
-	db *sql.DB
+	db *pgx.Conn
 }
 
-func New(db *sql.DB) *api {
+func New(db *pgx.Conn) *api {
 	return &api{db: db}
 }
