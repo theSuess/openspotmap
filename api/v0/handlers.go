@@ -45,7 +45,7 @@ func (api *api) GetSpots(c echo.Context) error {
 
 	if nearString != "" {
 		nearString = strings.TrimSpace(nearString)
-		correctFormat, err := regexp.MatchString(`[0-9]+\.?[0-9]*,[0-9]+\.?[0-9]*`, nearString)
+		correctFormat, err := regexp.MatchString(`^[0-9]+\.?[0-9]*,[0-9]+\.?[0-9]*$`, nearString)
 
 		if err != nil {
 			c.Logger().Error(err)
