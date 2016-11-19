@@ -25,6 +25,8 @@ type Response struct {
 type SpotList struct {
 	Response
 	Length int
+	Next   int
+	Total  int
 	Spots  []Spot
 }
 type SpotResponse struct {
