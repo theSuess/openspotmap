@@ -58,7 +58,7 @@ func (api *api) GetSpots(c echo.Context) error {
 
 		distanceString := c.QueryParam("distance")
 		if distanceString == "" {
-			return c.JSON(http.StatusBadRequest, errorMustBe("distance", "specified"))
+			distanceString = "5000"
 		}
 		distance, err := strconv.Atoi(distanceString)
 		if err != nil {
