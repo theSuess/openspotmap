@@ -1,0 +1,149 @@
+# this is an example of the Uber API
+# as a demonstration of an API spec in YAML
+swagger: '2.0'
+info:
+  title: Open Spot Map
+  description: A public API for parkour spots
+  version: "1.0.0"
+# the domain of the service
+host: openspotmap.herokuapp.com
+# array of all schemes that your API supports
+schemes:
+  - https
+# will be prefixed to all paths
+basePath: /api/v0
+produces:
+  - application/json
+paths:
+  /spots:
+    get:
+      summary: Spots
+      description: |
+        The Spots endpoint returns a list of spots.
+        It can use various filters like `near`
+      parameters:
+        - name: limit
+          in: query
+          description: Number of results to be returned.
+          required: false
+          type: integer
+          default: 100
+        - name: offset
+          in: query
+          description: Offset of results to return (usually `next` of the previous query)
+          required: false
+          type: integer
+          default: 0
+        - name: near
+          in: query
+          description: |
+            Using this parameter you can find spots in a distance relative to a specific location.
+          required: false
+          type: string
+          format: latitude,longitude
+        - name: distance
+          in: query
+          description: |
+            Maximum distance for `near` in meters
+          required: false
+          type: integer
+          format: meters
+          default: 5000
+          
+      tags:
+        - Spots
+      responses:
+        200:
+          description: A SpotList result containing the queried spots
+          schema:
+            $ref: '#/definitions/SpotList'
+        400:
+          description: Bad Request. More information can be found in the `Message` field
+          schema:
+            $ref: '#/definitions/Error'
+            
+  /spots/{id}:
+    get:
+      summary: Specific spot
+      description: |
+        This endpoint returns information to a specific spot
+      parameters:
+        - name: id
+          in: path
+          description: ID of spot to fetch
+          required: true
+          type: integer
+          format: integer
+      tags:
+        - Spots
+      responses:
+        200:
+          description: A Spot Object and result code
+          schema:
+            $ref: '#/definitions/Spot'
+        400:
+          description: Bad Request. More information can be found in the `Message` field
+          schema:
+            $ref: '#/definitions/Error'
+        404:
+          description: Spot Not Found
+          schema:
+            $ref: '#/definitions/Error'
+ 
+definitions:
+  SpotList:
+    type: object
+    properties:
+      Code:
+        type: integer
+        description: Result Code
+      Length:
+        type: integer
+        description: Length of the returned array
+      Next:
+        type: integer
+        description: Offset for the next query
+      Total:
+        type: integer
+        description: Total number of spots
+      Spots:
+        type: array
+        items:
+          $ref: '#/definitions/Spot'
+    
+  Spot:
+    type: object
+    properties:
+      Id:
+        type: integer
+        description: Unique ID of the spot.
+      Name:
+        type: string
+        description: Name of the spot.
+      Description:
+        type: string
+        description: Description of the spot.
+      Location:
+        $ref: '#/definitions/Point'
+      Images:
+        type: array
+        items:
+          type: string
+          description: URL of the image
+  
+  Point:
+    type: object
+    properties:
+      Latitude:
+        type: integer
+      Longitude:
+        type: integer
+  
+  Error:
+    type: object
+    properties:
+      Code:
+        type: integer
+        format: int32
+      Message:
+        type: string
