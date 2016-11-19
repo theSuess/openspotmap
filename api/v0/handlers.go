@@ -4,6 +4,7 @@ import (
 	"github.com/jackc/pgx"
 	"github.com/labstack/echo"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -19,10 +20,10 @@ func (api *api) GetSpots(c echo.Context) error {
 	default:
 		limit, err = strconv.Atoi(limitString)
 		if err != nil {
-			return c.JSON(http.StatusBadRequest, APIError{Response: Response{Type: "error", Code: 400}, Message: "Limit must be a number"})
+			return c.JSON(http.StatusBadRequest, errorMustBeType("limit", "integer"))
 		}
 		if limit <= 0 {
-			return c.JSON(http.StatusBadRequest, APIError{Response: Response{Type: "error", Code: 400}, Message: "Limit must be positive"})
+			return c.JSON(http.StatusBadRequest, errorMustBe("limit", "positive"))
 		}
 	}
 	var offset int
@@ -32,10 +33,10 @@ func (api *api) GetSpots(c echo.Context) error {
 	default:
 		offset, err = strconv.Atoi(offsetString)
 		if err != nil {
-			return c.JSON(http.StatusBadRequest, APIError{Response: Response{Type: "error", Code: 400}, Message: "Offset must be a number"})
+			return c.JSON(http.StatusBadRequest, errorMustBeType("offset", "integer"))
 		}
 		if offset < 0 {
-			return c.JSON(http.StatusBadRequest, APIError{Response: Response{Type: "error", Code: 400}, Message: "Offset must be positive or 0"})
+			return c.JSON(http.StatusBadRequest, errorMustBe("offset", "positive or zero"))
 		}
 	}
 
@@ -43,10 +44,25 @@ func (api *api) GetSpots(c echo.Context) error {
 	nearString := c.QueryParam("near")
 
 	if nearString != "" {
+		nearString = strings.TrimSpace(nearString)
+		correctFormat, err := regexp.MatchString(`[0-9]+\.?[0-9]*,[0-9]+\.?[0-9]*`, nearString)
+
+		if err != nil {
+			c.Logger().Error(err)
+			return c.JSON(http.StatusInternalServerError, ErrInternal)
+		}
+
+		if !correctFormat {
+			return c.JSON(http.StatusBadRequest, errorMustBeType("near", "float,float (latitude,longitude)"))
+		}
+
 		distanceString := c.QueryParam("distance")
+		if distanceString == "" {
+			return c.JSON(http.StatusBadRequest, errorMustBe("distance", "specified"))
+		}
 		distance, err := strconv.Atoi(distanceString)
 		if err != nil {
-			return c.JSON(http.StatusBadRequest, APIError{Response: Response{Type: "error", Code: 400}, Message: "Distance must be a number"})
+			return c.JSON(http.StatusBadRequest, errorMustBeType("distance", "integer (in meters)"))
 		}
 		splt := strings.Split(nearString, ",")
 		result, err = api.getSpotsNear(limit, offset, splt[1], splt[0], distance)
@@ -67,11 +83,11 @@ func (api *api) GetSpots(c echo.Context) error {
 func (api *api) GetSpot(c echo.Context) error {
 	q := c.Param("id")
 	if q == "" {
-		return c.JSON(http.StatusBadRequest, APIError{Response: Response{Type: "error", Code: 400}, Message: "Spot ID must be a specified"})
+		return c.JSON(http.StatusBadRequest, errorMustBe("Spot ID", "specified"))
 	}
 	id, err := strconv.Atoi(q)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, APIError{Response: Response{Type: "error", Code: 400}, Message: "Spot ID must be a number"})
+		return c.JSON(http.StatusBadRequest, errorMustBeType("Spot ID", "integer"))
 	}
 	var spot Spot
 	err = api.db.QueryRow(`SELECT id,name,description,ST_X(location::geometry) as longitude,ST_Y(location::geometry) as latitude,images
