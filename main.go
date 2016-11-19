@@ -32,13 +32,21 @@ func main() {
 
 	v0 := apiV0.New(db)
 
-	api := e.Group("/api")
+	api := e.Group("/api", addSwaggerHeader)
 
 	v0router := api.Group("/v0")
 	v0router.GET("/spots", v0.GetSpots)
 	v0router.GET("/spots/:id", v0.GetSpot)
 
 	e.Start(":" + port)
+}
+
+func addSwaggerHeader(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		c.Response().Header().Add("Access-Control-Allow-Origin", "http://editor.swagger.io")
+		c.Response().Header().Add("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept")
+		return next(c)
+	}
 }
 
 func connStringToConfig(c string) pgx.ConnConfig {
