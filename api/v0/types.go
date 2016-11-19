@@ -19,7 +19,6 @@ type APIError struct {
 
 type Response struct {
 	Code int
-	Type string
 }
 
 type SpotList struct {

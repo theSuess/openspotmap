@@ -97,7 +97,7 @@ func (api *api) GetSpot(c echo.Context) error {
 	case pgx.ErrNoRows:
 		return c.JSON(http.StatusNotFound, ErrSpotNotFound)
 	case nil:
-		return c.JSON(http.StatusOK, SpotResponse{Response: Response{Type: "result", Code: 200}, Spot: spot})
+		return c.JSON(http.StatusOK, SpotResponse{Response: Response{Code: 200}, Spot: spot})
 	default:
 		c.Logger().Error(err)
 		return c.JSON(http.StatusInternalServerError, ErrInternal)
@@ -122,7 +122,7 @@ func (api *api) getAllSpots(limit int, offset int) (SpotList, error) {
 		res = append(res, spot)
 	}
 	return SpotList{
-		Response: Response{Type: "result", Code: 200},
+		Response: Response{Code: 200},
 		Spots:    res, Length: len(res),
 		Next:  offset + len(res),
 		Total: totalCount,
@@ -154,7 +154,7 @@ func (api *api) getSpotsNear(limit int, offset int, long string, lat string, dis
 		res = append(res, spot)
 	}
 	return SpotList{
-		Response: Response{Type: "result", Code: 200},
+		Response: Response{Code: 200},
 		Spots:    res, Length: len(res),
 		Next:  offset + len(res),
 		Total: totalCount,
