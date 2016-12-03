@@ -6,7 +6,7 @@ This application is built for Heroku but can be run anywhere else with little ef
 
 ## API Documentation
 
-_Coming soon_
+[Documentation at Swaggerhub](https://app.swaggerhub.com/api/theSuess/openspotmap/v0)
 
 ## Running openspotmap
 
