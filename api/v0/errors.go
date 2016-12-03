@@ -16,3 +16,7 @@ func errorMustBeType(v string, t string) APIError {
 func errorMustBe(v string, t string) APIError {
 	return APIError{Response: Response{Code: 400}, Message: fmt.Sprintf("%s must be %s", v, t)}
 }
+
+func errorGeneral(c int, s string) APIError {
+	return APIError{Response: Response{Code: c}, Message: s}
+}

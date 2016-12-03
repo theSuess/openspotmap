@@ -37,6 +37,7 @@ func main() {
 	v0router := api.Group("/v0")
 	v0router.GET("/spots", v0.GetSpots)
 	v0router.GET("/spots/:id", v0.GetSpot)
+	v0router.POST("/spots", v0.AddSpot)
 
 	e.Start(":" + port)
 }

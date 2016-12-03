@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"github.com/jackc/pgx"
 	"github.com/labstack/echo"
 	"net/http"
@@ -102,6 +103,35 @@ func (api *api) GetSpot(c echo.Context) error {
 		c.Logger().Error(err)
 		return c.JSON(http.StatusInternalServerError, ErrInternal)
 	}
+}
+
+func (api *api) AddSpot(c echo.Context) error {
+	key := c.QueryParam("key")
+	if key == "" {
+		return c.JSON(http.StatusUnauthorized, errorMustBe("key", "specified"))
+	}
+
+	err := api.db.QueryRow(`SELECT 1 FROM keys WHERE id = $1`, key).Scan(nil)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, errorGeneral(http.StatusUnauthorized, "Invalid Key"))
+	}
+
+	req := c.Request()
+	decoder := json.NewDecoder(req.Body)
+	var s Spot
+	err = decoder.Decode(&s)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, errorMustBe("Request Body", "valid spot json"))
+	}
+	defer req.Body.Close()
+	_, err = api.db.Exec(`INSERT INTO spots (name,description,location,submitter) VALUES
+                        ($1,$2,ST_MakePoint($3,$4),$5)`,
+		s.Name, s.Description, s.Location.Longitude, s.Location.Latitude, key)
+	if err != nil {
+		c.Logger().Error(err)
+		return c.JSON(http.StatusInternalServerError, ErrInternal)
+	}
+	return c.NoContent(http.StatusOK)
 }
 
 func (api *api) getAllSpots(limit int, offset int) (SpotList, error) {
