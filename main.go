@@ -37,7 +37,8 @@ func main() {
 	v0router := api.Group("/v0")
 	v0router.GET("/spots", v0.GetSpots)
 	v0router.GET("/spots/:id", v0.GetSpot)
-	v0router.POST("/spots", v0.AddSpot)
+	v0router.DELETE("/spots/:id", v0.DeleteSpot, v0.Authenticate("delete"))
+	v0router.POST("/spots", v0.AddSpot, v0.Authenticate("create"))
 
 	e.Start(":" + port)
 }

@@ -72,7 +72,7 @@ func (api *api) GetSpots(c echo.Context) error {
 			return c.JSON(http.StatusInternalServerError, ErrInternal)
 		}
 	} else {
-		result, err = api.getAllSpots(limit, offset)
+		result, err = api.getActiveSpots(limit, offset)
 		if err != nil {
 			c.Logger().Error(err)
 			return c.JSON(http.StatusInternalServerError, ErrInternal)
@@ -106,42 +106,97 @@ func (api *api) GetSpot(c echo.Context) error {
 }
 
 func (api *api) AddSpot(c echo.Context) error {
-	key := c.QueryParam("key")
-	if key == "" {
-		return c.JSON(http.StatusUnauthorized, errorMustBe("key", "specified"))
-	}
-
-	err := api.db.QueryRow(`SELECT 1 FROM keys WHERE id = $1`, key).Scan(nil)
-	if err != nil {
-		return c.JSON(http.StatusUnauthorized, errorGeneral(http.StatusUnauthorized, "Invalid Key"))
-	}
+	key := c.Get("key").(string)
 
 	req := c.Request()
 	decoder := json.NewDecoder(req.Body)
 	var s Spot
-	err = decoder.Decode(&s)
+	err := decoder.Decode(&s)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, errorMustBe("Request Body", "valid spot json"))
 	}
 	defer req.Body.Close()
-	_, err = api.db.Exec(`INSERT INTO spots (name,description,location,submitter) VALUES
-                        ($1,$2,ST_MakePoint($3,$4),$5)`,
-		s.Name, s.Description, s.Location.Longitude, s.Location.Latitude, key)
+
+	err = api.db.QueryRow(`SELECT 1 FROM spots WHERE name=$1`, s.Name).Scan(nil)
+	if err == nil {
+		return c.JSON(http.StatusBadRequest, errorGeneral(http.StatusBadRequest, "A spot with that name already exists"))
+	}
+
+	err = api.db.QueryRow(`SELECT 1 FROM spots WHERE location=ST_MakePoint($1,$2)`, s.Location.Longitude, s.Location.Latitude).Scan(nil)
+	if err == nil {
+		return c.JSON(http.StatusBadRequest, errorGeneral(http.StatusBadRequest, "A spot with that location already exists"))
+	}
+
+	trans, err := api.db.Begin() // Starting transaction
+	_, err = trans.Exec(`INSERT INTO spots (name,description,location,images,submitter) VALUES
+                        ($1,$2,ST_MakePoint($3,$4),$5,$6)`,
+		s.Name, s.Description, s.Location.Longitude, s.Location.Latitude, s.Images, key)
+
 	if err != nil {
 		c.Logger().Error(err)
 		return c.JSON(http.StatusInternalServerError, ErrInternal)
 	}
-	return c.NoContent(http.StatusOK)
+
+	_, err = trans.Exec(`INSERT INTO activespots VALUES ((SELECT id FROM spots WHERE name=$1))`, s.Name)
+	if err != nil {
+		c.Logger().Error(err)
+		return c.JSON(http.StatusInternalServerError, ErrInternal)
+	}
+	err = trans.Commit()
+	if err != nil {
+		c.Logger().Error(err)
+		return c.JSON(http.StatusInternalServerError, ErrInternal)
+	}
+	return c.NoContent(http.StatusCreated)
 }
 
-func (api *api) getAllSpots(limit int, offset int) (SpotList, error) {
+func (api *api) DeleteSpot(c echo.Context) error {
+	id := c.Param("id")
+	if id == "" {
+		return c.JSON(http.StatusBadRequest, errorGeneral(http.StatusBadRequest, "Spot ID not specified"))
+	}
+	api.db.Exec(`DELETE FROM activespots WHERE id=$1`, id)
+	return c.NoContent(http.StatusNoContent)
+}
+
+func (api *api) Authenticate(level string) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			key := c.Request().Header.Get("X-API-Key")
+			if key == "" {
+				return c.JSON(http.StatusBadRequest, errorMustBe("X-API-Key header", "specified"))
+			}
+
+			var permissions []string
+			err := api.db.QueryRow(`SELECT permissions FROM keys WHERE id = $1`, key).Scan(&permissions)
+			if err != nil {
+				return c.JSON(http.StatusUnauthorized, errorGeneral(http.StatusUnauthorized, "Invalid Key"))
+			}
+			if !stringInSlice(level, permissions) {
+				return c.JSON(http.StatusForbidden, errorGeneral(http.StatusForbidden, "Your misses the following permissions: '"+level+"'"))
+			}
+			c.Set("key", key)
+			return next(c)
+		}
+	}
+}
+func stringInSlice(a string, list []string) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
+}
+
+func (api *api) getActiveSpots(limit int, offset int) (SpotList, error) {
 	var totalCount int
-	err := api.db.QueryRow("SELECT count(*) FROM spots").Scan(&totalCount)
+	err := api.db.QueryRow("SELECT count(*) FROM activespots").Scan(&totalCount)
 	if err != nil {
 		return SpotList{}, err
 	}
 
-	rows, err := api.db.Query("SELECT id,name,description,ST_X(location::geometry),ST_Y(location::geometry),images FROM spots ORDER BY id LIMIT $1 OFFSET $2", limit, offset)
+	rows, err := api.db.Query(`SELECT id,name,description,ST_X(location::geometry),ST_Y(location::geometry),images FROM activespots NATURAL JOIN spots ORDER BY id LIMIT $1 OFFSET $2`, limit, offset)
 	if err != nil {
 		return SpotList{}, err
 	}
@@ -162,13 +217,13 @@ func (api *api) getAllSpots(limit int, offset int) (SpotList, error) {
 func (api *api) getSpotsNear(limit int, offset int, long string, lat string, distance int) (SpotList, error) {
 	distFloat := float64(distance)
 	var totalCount int
-	err := api.db.QueryRow("SELECT count(*) FROM spots WHERE ST_DISTANCE(ST_MakePoint($1,$2),location) <= $3", long, lat, distFloat).Scan(&totalCount)
+	err := api.db.QueryRow("SELECT count(*) FROM activespots NATURAL JOIN spots WHERE ST_DISTANCE(ST_MakePoint($1,$2),location) <= $3", long, lat, distFloat).Scan(&totalCount)
 	if err != nil {
 		return SpotList{}, err
 	}
 
 	rows, err := api.db.Query(
-		"SELECT id,name,description,ST_X(location::geometry),ST_Y(location::geometry),images FROM spots WHERE ST_DISTANCE(ST_MakePoint($1,$2),location) < $3 ORDER BY id LIMIT $4 OFFSET $5",
+		"SELECT id,name,description,ST_X(location::geometry),ST_Y(location::geometry),images FROM spots NATURAL JOIN spots WHERE ST_DISTANCE(ST_MakePoint($1,$2),location) < $3 ORDER BY id LIMIT $4 OFFSET $5",
 		long,
 		lat,
 		distFloat,
