@@ -159,6 +159,60 @@ func (api *api) DeleteSpot(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
+func (api *api) UpdateSpot(c echo.Context) error {
+	id := c.Param("id")
+	if id == "" {
+		return c.JSON(http.StatusBadRequest, errorGeneral(http.StatusBadRequest, "Spot ID not specified"))
+	}
+
+	req := c.Request()
+	decoder := json.NewDecoder(req.Body)
+	var s Spot
+	err := decoder.Decode(&s)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, errorMustBe("Request Body", "valid spot json"))
+	}
+	defer req.Body.Close()
+	tr, err := api.db.Begin()
+
+	if err != nil {
+		c.Logger().Error(err)
+		return c.JSON(http.StatusInternalServerError, ErrInternal)
+	}
+	if s.Name != "" {
+		tr.Exec(`UPDATE spots SET name = $1 WHERE id=$2`, s.Name, id)
+	}
+	if s.Description != "" {
+		tr.Exec(`UPDATE spots SET description = $1 WHERE id=$2`, s.Description, id)
+	}
+	if s.Images != nil {
+		if c.QueryParam("imgreplace") != "" {
+			tr.Exec(`UPDATE spots SET images = $1 WHERE id=$2`, s.Images, id)
+		} else {
+			tr.Exec(`UPDATE spots SET images = images || $1 WHERE id=$2`, s.Images, id)
+		}
+	}
+	if s.Location.Latitude != 0 {
+		tr.Exec(`UPDATE spots
+               SET location = ST_MakePoint((SELECT ST_X(location::geometry) FROM spots WHERE id = $2),$1)
+               WHERE id=$2`,
+			s.Location.Latitude, id)
+	}
+	if s.Location.Longitude != 0 {
+		tr.Exec(`UPDATE spots
+               SET location = ST_MakePoint($1,(SELECT ST_Y(location::geometry) FROM spots WHERE id = $2))
+               WHERE id=$2`,
+			s.Location.Longitude, id)
+	}
+
+	err = tr.Commit()
+	if err != nil {
+		c.Logger().Error(err)
+		return c.JSON(http.StatusInternalServerError, ErrInternal)
+	}
+	return c.NoContent(http.StatusOK)
+}
+
 func (api *api) Authenticate(level string) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
