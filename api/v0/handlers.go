@@ -1,8 +1,6 @@
 package api
 
 import (
-	"encoding/json"
-	"github.com/jackc/pgx"
 	"github.com/labstack/echo"
 	"net/http"
 	"regexp"
@@ -82,42 +80,15 @@ func (api *api) GetSpots(c echo.Context) error {
 }
 
 func (api *api) GetSpot(c echo.Context) error {
-	q := c.Param("id")
-	if q == "" {
-		return c.JSON(http.StatusBadRequest, errorMustBe("Spot ID", "specified"))
-	}
-	id, err := strconv.Atoi(q)
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, errorMustBeType("Spot ID", "integer"))
-	}
-	var spot Spot
-	err = api.db.QueryRow(`SELECT id,name,description,ST_X(location::geometry) as longitude,ST_Y(location::geometry) as latitude,images
-                            FROM spots
-                            WHERE id = $1`, id).Scan(&spot.Id, &spot.Name, &spot.Description, &spot.Location.Longitude, &spot.Location.Latitude, &spot.Images)
-	switch err {
-	case pgx.ErrNoRows:
-		return c.JSON(http.StatusNotFound, ErrSpotNotFound)
-	case nil:
-		return c.JSON(http.StatusOK, SpotResponse{Response: Response{Code: 200}, Spot: spot})
-	default:
-		c.Logger().Error(err)
-		return c.JSON(http.StatusInternalServerError, ErrInternal)
-	}
+	spot := c.Get("spot").(Spot)
+	return c.JSON(http.StatusOK, SpotResponse{Response: Response{Code: 200}, Spot: spot})
 }
 
 func (api *api) AddSpot(c echo.Context) error {
 	key := c.Get("key").(string)
+	s := c.Get("reqspot").(Spot)
 
-	req := c.Request()
-	decoder := json.NewDecoder(req.Body)
-	var s Spot
-	err := decoder.Decode(&s)
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, errorMustBe("Request Body", "valid spot json"))
-	}
-	defer req.Body.Close()
-
-	err = api.db.QueryRow(`SELECT 1 FROM spots WHERE name=$1`, s.Name).Scan(nil)
+	err := api.db.QueryRow(`SELECT 1 FROM spots WHERE name=$1`, s.Name).Scan(nil)
 	if err == nil {
 		return c.JSON(http.StatusBadRequest, errorGeneral(http.StatusBadRequest, "A spot with that name already exists"))
 	}
@@ -151,28 +122,14 @@ func (api *api) AddSpot(c echo.Context) error {
 }
 
 func (api *api) DeleteSpot(c echo.Context) error {
-	id := c.Param("id")
-	if id == "" {
-		return c.JSON(http.StatusBadRequest, errorGeneral(http.StatusBadRequest, "Spot ID not specified"))
-	}
-	api.db.Exec(`DELETE FROM activespots WHERE id=$1`, id)
+	spot := c.Get("spot").(Spot)
+	api.db.Exec(`DELETE FROM activespots WHERE id=$1`, spot.Id)
 	return c.NoContent(http.StatusNoContent)
 }
 
 func (api *api) UpdateSpot(c echo.Context) error {
-	id := c.Param("id")
-	if id == "" {
-		return c.JSON(http.StatusBadRequest, errorGeneral(http.StatusBadRequest, "Spot ID not specified"))
-	}
-
-	req := c.Request()
-	decoder := json.NewDecoder(req.Body)
-	var s Spot
-	err := decoder.Decode(&s)
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, errorMustBe("Request Body", "valid spot json"))
-	}
-	defer req.Body.Close()
+	spot := c.Get("spot").(Spot)
+	s := c.Get("reqspot").(Spot)
 	tr, err := api.db.Begin()
 
 	if err != nil {
@@ -180,29 +137,29 @@ func (api *api) UpdateSpot(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrInternal)
 	}
 	if s.Name != "" {
-		tr.Exec(`UPDATE spots SET name = $1 WHERE id=$2`, s.Name, id)
+		tr.Exec(`UPDATE spots SET name = $1 WHERE id=$2`, s.Name, spot.Id)
 	}
 	if s.Description != "" {
-		tr.Exec(`UPDATE spots SET description = $1 WHERE id=$2`, s.Description, id)
+		tr.Exec(`UPDATE spots SET description = $1 WHERE id=$2`, s.Description, spot.Id)
 	}
 	if s.Images != nil {
 		if c.QueryParam("imgreplace") != "" {
-			tr.Exec(`UPDATE spots SET images = $1 WHERE id=$2`, s.Images, id)
+			tr.Exec(`UPDATE spots SET images = $1 WHERE id=$2`, s.Images, spot.Id)
 		} else {
-			tr.Exec(`UPDATE spots SET images = images || $1 WHERE id=$2`, s.Images, id)
+			tr.Exec(`UPDATE spots SET images = images || $1 WHERE id=$2`, s.Images, spot.Id)
 		}
 	}
 	if s.Location.Latitude != 0 {
 		tr.Exec(`UPDATE spots
                SET location = ST_MakePoint((SELECT ST_X(location::geometry) FROM spots WHERE id = $2),$1)
                WHERE id=$2`,
-			s.Location.Latitude, id)
+			s.Location.Latitude, spot.Id)
 	}
 	if s.Location.Longitude != 0 {
 		tr.Exec(`UPDATE spots
                SET location = ST_MakePoint($1,(SELECT ST_Y(location::geometry) FROM spots WHERE id = $2))
                WHERE id=$2`,
-			s.Location.Longitude, id)
+			s.Location.Longitude, spot.Id)
 	}
 
 	err = tr.Commit()
@@ -211,36 +168,6 @@ func (api *api) UpdateSpot(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrInternal)
 	}
 	return c.NoContent(http.StatusOK)
-}
-
-func (api *api) Authenticate(level string) echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			key := c.Request().Header.Get("X-API-Key")
-			if key == "" {
-				return c.JSON(http.StatusBadRequest, errorMustBe("X-API-Key header", "specified"))
-			}
-
-			var permissions []string
-			err := api.db.QueryRow(`SELECT permissions FROM keys WHERE id = $1`, key).Scan(&permissions)
-			if err != nil {
-				return c.JSON(http.StatusUnauthorized, errorGeneral(http.StatusUnauthorized, "Invalid Key"))
-			}
-			if !stringInSlice(level, permissions) {
-				return c.JSON(http.StatusForbidden, errorGeneral(http.StatusForbidden, "Your misses the following permissions: '"+level+"'"))
-			}
-			c.Set("key", key)
-			return next(c)
-		}
-	}
-}
-func stringInSlice(a string, list []string) bool {
-	for _, b := range list {
-		if b == a {
-			return true
-		}
-	}
-	return false
 }
 
 func (api *api) getActiveSpots(limit int, offset int) (SpotList, error) {

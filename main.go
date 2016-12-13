@@ -36,10 +36,10 @@ func main() {
 
 	v0router := api.Group("/v0")
 	v0router.GET("/spots", v0.GetSpots)
-	v0router.POST("/spots", v0.AddSpot, v0.Authenticate("create"))
-	v0router.GET("/spots/:id", v0.GetSpot)
-	v0router.DELETE("/spots/:id", v0.DeleteSpot, v0.Authenticate("delete"))
-	v0router.PUT("/spots/:id", v0.UpdateSpot, v0.Authenticate("update"))
+	v0router.POST("/spots", v0.AddSpot, v0.Authenticate("create"), v0.SpotFromBody())
+	v0router.GET("/spots/:id", v0.GetSpot, v0.InjectSpot())
+	v0router.DELETE("/spots/:id", v0.DeleteSpot, v0.Authenticate("delete"), v0.InjectSpot())
+	v0router.PUT("/spots/:id", v0.UpdateSpot, v0.Authenticate("update"), v0.InjectSpot(), v0.SpotFromBody())
 
 	e.Start(":" + port)
 }
