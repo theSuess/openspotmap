@@ -32,7 +32,7 @@ func main() {
 
 	v0 := apiV0.New(db)
 
-	api := e.Group("/api", addSwaggerHeader)
+	api := e.Group("/api", addCORSHeader)
 
 	v0router := api.Group("/v0")
 	v0router.GET("/spots", v0.GetSpots)
@@ -40,11 +40,13 @@ func main() {
 	v0router.GET("/spots/:id", v0.GetSpot, v0.InjectSpot())
 	v0router.DELETE("/spots/:id", v0.DeleteSpot, v0.Authenticate("delete"), v0.InjectSpot())
 	v0router.PUT("/spots/:id", v0.UpdateSpot, v0.Authenticate("update"), v0.InjectSpot(), v0.SpotFromBody())
+	v0router.PUT("/spots/:id", v0.UpdateSpot, v0.Authenticate("update"), v0.InjectSpot(), v0.SpotFromBody())
+	v0router.OPTIONS("/spots",func(c echo.Context) error { return c.NoContent(200) })
 
 	e.Start(":" + port)
 }
 
-func addSwaggerHeader(next echo.HandlerFunc) echo.HandlerFunc {
+func addCORSHeader(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		c.Response().Header().Add("Access-Control-Allow-Origin", "*")
 		c.Response().Header().Add("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept")
