@@ -51,6 +51,7 @@ func addCORSHeader(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		c.Response().Header().Add("Access-Control-Allow-Origin", "*")
 		c.Response().Header().Add("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept,X-API-Key")
+		c.Response().Header().Add("Access-Control-Allow-Methods", "PUT,GET")
 		return next(c)
 	}
 }
