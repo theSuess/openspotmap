@@ -42,6 +42,7 @@ func main() {
 	v0router.PUT("/spots/:id", v0.UpdateSpot, v0.Authenticate("update"), v0.InjectSpot(), v0.SpotFromBody())
 	v0router.PUT("/spots/:id", v0.UpdateSpot, v0.Authenticate("update"), v0.InjectSpot(), v0.SpotFromBody())
 	v0router.OPTIONS("/spots",func(c echo.Context) error { return c.NoContent(200) })
+    v0router.OPTIONS("/spots/:id",func(c echo.Context) error { return c.NoContent(200) })
 
 	e.Start(":" + port)
 }
