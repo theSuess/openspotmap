@@ -7,7 +7,7 @@
     "postgres",
     "postgis"
   ],
-  "image": "heroku/go:1.6",
+  "image": "heroku/go:1.14",
   "mount_dir": "src/github.com/theSuess/openspotmap",
   "website": "http://github.com/theSuess/openspotmap",
   "repository": "http://github.com/theSuess/openspotmap"
