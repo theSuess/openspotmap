@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/tls"
 	"net"
 	"os"
 	"strconv"
@@ -41,8 +40,8 @@ func main() {
 	v0router.DELETE("/spots/:id", v0.DeleteSpot, v0.Authenticate("delete"), v0.InjectSpot())
 	v0router.PUT("/spots/:id", v0.UpdateSpot, v0.Authenticate("update"), v0.InjectSpot(), v0.SpotFromBody())
 	v0router.PUT("/spots/:id", v0.UpdateSpot, v0.Authenticate("update"), v0.InjectSpot(), v0.SpotFromBody())
-	v0router.OPTIONS("/spots",func(c echo.Context) error { return c.NoContent(200) })
-    v0router.OPTIONS("/spots/:id",func(c echo.Context) error { return c.NoContent(200) })
+	v0router.OPTIONS("/spots", func(c echo.Context) error { return c.NoContent(200) })
+	v0router.OPTIONS("/spots/:id", func(c echo.Context) error { return c.NoContent(200) })
 
 	e.Start(":" + port)
 }
@@ -73,6 +72,6 @@ func connStringToConfig(c string) pgx.ConnConfig {
 		Database:  db,
 		User:      user,
 		Password:  password,
-		TLSConfig: &tls.Config{InsecureSkipVerify: true}, //TLSConfig must be set to use SSL
+		TLSConfig: nil,
 	}
 }

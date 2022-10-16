@@ -3,18 +3,19 @@ module github.com/theSuess/openspotmap
 go 1.14
 
 require (
-	github.com/dgrijalva/jwt-go v3.0.1-0.20160831183534-24c63f56522a+incompatible // indirect
-	github.com/jackc/pgx v2.9.1-0.20161104190743-2a0504599e9e+incompatible
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
+	github.com/go-stack/stack v1.8.1 // indirect
+	github.com/jackc/fake v0.0.0-20150926172116-812a484cc733 // indirect
+	github.com/jackc/pgx v3.6.2+incompatible
 	github.com/labstack/echo v3.3.10+incompatible
-	github.com/labstack/gommon v0.1.0
-	github.com/mattn/go-colorable v0.0.7-0.20160930084157-6c903ff4aa50 // indirect
-	github.com/mattn/go-isatty v0.0.0-20160806122752-66b8e73f3f5c // indirect
-	github.com/rsc/letsencrypt v0.0.0-20160929132805-76104d26167d // indirect
-	github.com/tylerb/graceful v1.2.13 // indirect
-	github.com/valyala/fasttemplate v0.0.0-20160315193134-3b874956e03f // indirect
-	golang.org/x/crypto v0.0.0-20161031180806-9477e0b78b9a // indirect
-	golang.org/x/net v0.0.0-20161001181348-cd95c68ba21f // indirect
-	golang.org/x/sys v0.0.0-20161110161252-b699b7032584 // indirect
-	golang.org/x/time v0.0.0-20161028155119-f51c12702a4d // indirect
-	gopkg.in/square/go-jose.v1 v1.1.0 // indirect
+	github.com/labstack/gommon v0.4.0
+	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
+	github.com/shopspring/decimal v1.3.1 // indirect
+	github.com/stretchr/testify v1.8.0 // indirect
+	golang.org/x/crypto v0.0.0-20221012134737-56aed061732a // indirect
+	golang.org/x/net v0.0.0-20221014081412-f15817d10f9b // indirect
+	golang.org/x/sys v0.0.0-20221013171732-95e765b1cc43 // indirect
+	golang.org/x/text v0.3.8 // indirect
+	gopkg.in/inconshreveable/log15.v2 v2.0.0-20200109203555-b30bc20e4fd1 // indirect
 )
